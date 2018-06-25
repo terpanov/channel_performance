@@ -61,6 +61,25 @@ dates = pd.DataFrame([date_start,date_end])
 #fill blank values with zeroes
 channels = channels.fillna(0)
 
+#extract active campaigns
+vungle_data = channels[channels['Network'] == 'Paid:Video:Vungle']
+vungle_campaigns = pd.DataFrame(vungle_data['Campaign'].unique())
+
+unity_data = channels[channels['Network'] == 'Paid:Video:Unity']
+unity_campaigns = pd.DataFrame(unity_data['Campaign'].unique())
+
+adcolony_data = channels[channels['Network'] == 'Paid:Video:AdColony']
+adcolony_campaigns = pd.DataFrame(adcolony_data['Campaign'].unique())
+
+ironsourse_data = channels[channels['Network'] == 'Paid:Video:Supersonic']
+ironsourse_campaigns = pd.DataFrame(ironsourse_data['Campaign'].unique())
+
+#output active campaigns
+channels_output.df_to_sheet(vungle_campaigns, sheet='Vungle Campaigns')
+channels_output.df_to_sheet(unity_campaigns, sheet='Unity Campaigns')
+channels_output.df_to_sheet(adcolony_campaigns, sheet='AdColony Campaigns')
+channels_output.df_to_sheet(ironsourse_campaigns, sheet='IronSource Campaigns')
+
 #get target CPI for each network
 CPI_GoogleSheets = Spread('new','Performance_Analysis')
 CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='DASH')
@@ -186,9 +205,12 @@ channels_output.clear_sheet(sheet='Unity')
 channels_output.clear_sheet(sheet='AdColony')
 channels_output.clear_sheet(sheet='IronSource')
 
-#output sheets
+#output channel raw data to Google Sheets
 channels_output.df_to_sheet(vungle, sheet='Vungle')
 channels_output.df_to_sheet(unity, sheet='Unity')
 channels_output.df_to_sheet(adcolony, sheet='AdColony')
 channels_output.df_to_sheet(ironsourse, sheet='IronSource')
+
+#output start and end date
 channels_output.df_to_sheet(dates, sheet='dates')
+
