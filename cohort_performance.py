@@ -64,30 +64,41 @@ channels = channels.fillna(0)
 #extract active campaigns
 vungle_data = channels[channels['Network'] == 'Paid:Video:Vungle']
 vungle_campaigns = pd.DataFrame(vungle_data['Campaign'].unique())
+vungle_campaigns['Network'] = 'Vungle'
 
 unity_data = channels[channels['Network'] == 'Paid:Video:Unity']
 unity_campaigns = pd.DataFrame(unity_data['Campaign'].unique())
+unity_campaigns['Network'] = 'Unity'
 
 adcolony_data = channels[channels['Network'] == 'Paid:Video:AdColony']
 adcolony_campaigns = pd.DataFrame(adcolony_data['Campaign'].unique())
+adcolony_campaigns['Network'] = 'AdColony'
 
 ironsourse_data = channels[channels['Network'] == 'Paid:Video:Supersonic']
 ironsourse_campaigns = pd.DataFrame(ironsourse_data['Campaign'].unique())
+ironsourse_campaigns['Network'] = 'IronSource'
+
+live_campaigns = pd.concat([vungle_campaigns,unity_campaigns,adcolony_campaigns,ironsourse_campaigns],ignore_index=True)
+live_campaigns.columns.values[0] = 'Campaign'
 
 #output active campaigns
-channels_output.df_to_sheet(vungle_campaigns, sheet='Vungle Campaigns')
-channels_output.df_to_sheet(unity_campaigns, sheet='Unity Campaigns')
-channels_output.df_to_sheet(adcolony_campaigns, sheet='AdColony Campaigns')
-channels_output.df_to_sheet(ironsourse_campaigns, sheet='IronSource Campaigns')
+channels_output.df_to_sheet(live_campaigns, sheet='Live Campaigns')
 
 #get target CPI for each network
 CPI_GoogleSheets = Spread('new','Performance_Analysis')
-CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='DASH')
-CPI_Adcolony = float(CPIs['AdColony'][0])
-CPI_Supersonic = float(CPIs['Supersonic'][0])
-CPI_Unity = float(CPIs['Unity'][0])
-CPI_Vungle = float(CPIs['Vungle'][0])
+#CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='DASH')
+#CPI_Adcolony = float(CPIs['AdColony'][0])
+#CPI_Supersonic = float(CPIs['Supersonic'][0])
+#CPI_Unity = float(CPIs['Unity'][0])
+#CPI_Vungle = float(CPIs['Vungle'][0])
 
+#add bid CPIs to dataframe
+bids_data = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='Live Campaigns')
+bids = pd.DataFrame(bids_data)
+channels = pd.merge(channels,bids,on='Campaign')
+
+channels['Bids'] = pd.to_numeric(channels['Bids'])
+type(channels['Bids'])
 #add net revenue, ARPU, Purchase, Bid, Status, Bucket
 
 #channels['Revenue Unique'] = np.where(channels['Days after Install'] == 0,channels['Revenue Total'],0)
@@ -98,92 +109,50 @@ channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7
 channels['Cohort Unique'] = np.where(channels['Days after Install'] == 0,channels['Cohort Size'],0)
 
 #vungle
-channels['Greater 75% of Bid Vungle'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Vungle * 0.75)),0,1)
-channels['Greater 125% of Bid Vungle'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Vungle * 1.25)),1,0)
-channels['Status Vungle'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Vungle'] == 0),'Pause','Live')
-channels['Greylist Vungle'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Vungle'] == 1),1,0)
+channels['Greater 75% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (channels['Bids'] * 0.75)),0,1)
+channels['Greater 125% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (channels['Bids'] * 1.25)),1,0)
+channels['Status'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid'] == 0),'Pause','Live')
+channels['Greylist'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid'] == 1),1,0)
 
 #unity
-channels['Greater 75% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Unity * 0.75)),0,1)
-channels['Greater 125% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Unity * 1.25)),1,0)
-channels['Status Unity'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Unity'] == 0),'Pause','Live')
-channels['Greylist Unity'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Unity'] == 1),1,0)
+#channels['Greater 75% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Unity * 0.75)),0,1)
+#channels['Greater 125% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Unity * 1.25)),1,0)
+#channels['Status Unity'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Unity'] == 0),'Pause','Live')
+#channels['Greylist Unity'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Unity'] == 1),1,0)
 
 #adcolony
-channels['Greater 75% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Adcolony * 0.75)),0,1)
-channels['Greater 125% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Adcolony * 1.25)),1,0)
-channels['Status Adcolony'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Adcolony'] == 0),'Pause','Live')
-channels['Greylist Adcolony'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Adcolony'] == 1),1,0)
+#channels['Greater 75% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Adcolony * 0.75)),0,1)
+#channels['Greater 125% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Adcolony * 1.25)),1,0)
+#channels['Status Adcolony'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Adcolony'] == 0),'Pause','Live')
+#channels['Greylist Adcolony'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Adcolony'] == 1),1,0)
 
 #supersonic
-channels['Greater 75% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Supersonic * 0.75)),0,1)
-channels['Greater 125% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Supersonic * 1.25)),1,0)
-channels['Status Supersonic'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Supersonic'] == 0),'Pause','Live')
-channels['Greylist Supersonic'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Supersonic'] == 1),1,0)
+#channels['Greater 75% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Supersonic * 0.75)),0,1)
+#channels['Greater 125% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Supersonic * 1.25)),1,0)
+#channels['Status Supersonic'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Supersonic'] == 0),'Pause','Live')
+#channels['Greylist Supersonic'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Supersonic'] == 1),1,0)
 
 #channel bucket function
 def channel_bucket(x):
-	if x['Network'] == 'Paid:Video:Vungle':
-		if x['Status Vungle'] == 'Pause':
-			return 'Blacklist'
-		elif x['Cohort Size'] < 50:
-			return 'RON'
-		elif x['Greylist Vungle'] == 1:
-			return 'Greylist'
-		else:
-			return 'RON'
-	elif x['Network'] == 'Paid:Video:Unity':
-		if x['Status Unity'] == 'Pause':
-			return 'Blacklist'
-		elif x['Cohort Size'] < 50:
-			return 'RON'
-		elif x['Greylist Unity'] == 1:
-			return 'Greylist'
-		else:
-			return 'RON'
-	elif x['Network'] == 'Paid:Video:AdColony':
-		if x['Status Adcolony'] == 'Pause':
-			return 'Blacklist'
-		elif x['Cohort Size'] < 50:
-			return 'RON'
-		elif x['Greylist Adcolony'] == 1:
-			return 'Greylist'
-		else:
-			return 'RON'
-	elif x['Network'] == 'Paid:Video:Supersonic':
-		if x['Status Supersonic'] == 'Pause':
-			return 'Blacklist'
-		elif x['Cohort Size'] < 50:
-			return 'RON'
-		elif x['Greylist Supersonic'] == 1:
-			return 'Greylist'
-		else:
-			return 'RON'
+	if x['Status'] == 'Pause':
+		return 'Blacklist'
+	elif x['Cohort Size'] < 50:
+		return 'RON'
+	elif x['Greylist'] == 1:
+		return 'Greylist'
 	else:
 		return 'RON'
 
 channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 
-#channel status function
-def channel_status(x):
-	if x['Network'] == 'Paid:Video:Vungle':
-		return x['Status Vungle']
-	elif x['Network'] == 'Paid:Video:Unity':
-		return x['Status Unity']
-	elif x['Network'] == 'Paid:Video:AdColony':
-		return x['Status Adcolony']
-	elif x['Network'] == 'Paid:Video:Supersonic':
-		return x['Status Supersonic']
-
-channels['Status'] = channels.apply(channel_status, axis=1)
-
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan).reset_index()
+channels.info()
 
 #group by Network, Campaign, Adgroup, OS, Country
-channels_grouped = channels.groupby(['Network','Campaign','Adgroup','OS','Status','Bucket','Country']).agg({
+channels_grouped = channels.groupby(['Network_x','Campaign','Adgroup','OS','Status','Bucket','Country']).agg({
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
-		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean},).reset_index()
+		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'Bids':np.mean},).reset_index()
 
 #print to CSV
 #channels_grouped.to_csv('data15.csv')
@@ -194,10 +163,10 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 #filter by partner network
-vungle = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
-unity = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Unity'].reset_index(drop=True)
-adcolony = channels_grouped[channels_grouped['Network'] == 'Paid:Video:AdColony'].reset_index(drop=True)
-ironsourse = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
+vungle = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Vungle'].reset_index(drop=True)
+unity = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Unity'].reset_index(drop=True)
+adcolony = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:AdColony'].reset_index(drop=True)
+ironsourse = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
 
 #reset sheets
 channels_output.clear_sheet(sheet='Vungle')
