@@ -38,11 +38,12 @@ cohorts['Days after Install'].max()
 
 #selecting columns to keep
 channels = cohorts[['Date','Tracker','Network','Campaign','Adgroup','Creative','Days after Install','Cohort Size',
-    'Retained Users','Paying Users','Sessions','Revenue','Revenue Total','Time Spent','Lifetime Value','Country','OS']]
+	'Retained Users','Paying Users','Sessions','Revenue','Revenue Total','Time Spent','Lifetime Value','Country','OS']]
 
 #drop channels
 to_drop = ['Untrusted Devices', 'Organic', 'Off-Facebook Installs', 'Facebook Installs', 'Instagram Installs',
-                                'Facebook Messenger Installs','Owned:Web', 'Owned:HBO','Earned:Social']
+								'Facebook Messenger Installs','Owned:Web', 'Owned:HBO','Earned:Social',
+								'Adwords UAC Installs', 'Google Organic Search']
 channels = channels[~channels['Network'].isin(to_drop)]
 
 #check dropped networks
@@ -50,25 +51,26 @@ channels['Network'].nunique()
 network_names = channels['Network'].unique()
 sorted(network_names)
 
-#add Weeks after Install column
+#add Weeks after Install column and create first/last date dataframe
 channels['Weeks after Install'] = (channels['Days after Install'] / 7).round()
 channels = channels.reset_index()
+date_start = channels['Date'].min()
+date_end = channels['Date'].max()
+dates = pd.DataFrame([date_start,date_end])
 
 #fill blank values with zeroes
 channels = channels.fillna(0)
 
-CPI = 1
-
 #get target CPI for each network
 CPI_GoogleSheets = Spread('new','Performance_Analysis')
-CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='INPUT')
-CPI_UAC = float(CPIs['UAC'][0])
+CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='DASH')
 CPI_Adcolony = float(CPIs['AdColony'][0])
 CPI_Supersonic = float(CPIs['Supersonic'][0])
 CPI_Unity = float(CPIs['Unity'][0])
 CPI_Vungle = float(CPIs['Vungle'][0])
 
 #add net revenue, ARPU, Purchase, Bid, Status, Bucket
+
 #channels['Revenue Unique'] = np.where(channels['Days after Install'] == 0,channels['Revenue Total'],0)
 channels['D7 Net Revenue'] = channels['Revenue'] * 0.7
 channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size']
@@ -76,28 +78,85 @@ channels['D180 ARPU'] = channels['D7 ARPU'] / 0.08
 channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7 ARPU'] == 0),0,1)
 channels['Cohort Unique'] = np.where(channels['Days after Install'] == 0,channels['Cohort Size'],0)
 
-channels['Greater 75% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI * 0.75)),0,1)
-channels['Greater 125% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI * 1.25)),1,0)
-channels['Status'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid'] == 0),'Pause','Live')
-channels['Greylist'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid'] == 1),1,0)
+#vungle
+channels['Greater 75% of Bid Vungle'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Vungle * 0.75)),0,1)
+channels['Greater 125% of Bid Vungle'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Vungle * 1.25)),1,0)
+channels['Status Vungle'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Vungle'] == 0),'Pause','Live')
+channels['Greylist Vungle'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Vungle'] == 1),1,0)
 
-channels['Greater 75% of Bid'].describe()
-channels['Cohort Size'].describe()
+#unity
+channels['Greater 75% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Unity * 0.75)),0,1)
+channels['Greater 125% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Unity * 1.25)),1,0)
+channels['Status Unity'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Unity'] == 0),'Pause','Live')
+channels['Greylist Unity'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Unity'] == 1),1,0)
 
+#adcolony
+channels['Greater 75% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Adcolony * 0.75)),0,1)
+channels['Greater 125% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Adcolony * 1.25)),1,0)
+channels['Status Adcolony'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Adcolony'] == 0),'Pause','Live')
+channels['Greylist Adcolony'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Adcolony'] == 1),1,0)
+
+#supersonic
+channels['Greater 75% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Supersonic * 0.75)),0,1)
+channels['Greater 125% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Supersonic * 1.25)),1,0)
+channels['Status Supersonic'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Supersonic'] == 0),'Pause','Live')
+channels['Greylist Supersonic'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Supersonic'] == 1),1,0)
+
+#channel bucket function
 def channel_bucket(x):
-	if x['Status'] == 'Pause':
-		return 'Blacklist'
-	elif x['Cohort Size'] < 50:
-		return 'RON'
-	elif x['Greylist'] == 1:
-		return 'Greylist'
+	if x['Network'] == 'Paid:Video:Vungle':
+		if x['Status Vungle'] == 'Pause':
+			return 'Blacklist'
+		elif x['Cohort Size'] < 50:
+			return 'RON'
+		elif x['Greylist Vungle'] == 1:
+			return 'Greylist'
+		else:
+			return 'RON'
+	elif x['Network'] == 'Paid:Video:Unity':
+		if x['Status Unity'] == 'Pause':
+			return 'Blacklist'
+		elif x['Cohort Size'] < 50:
+			return 'RON'
+		elif x['Greylist Unity'] == 1:
+			return 'Greylist'
+		else:
+			return 'RON'
+	elif x['Network'] == 'Paid:Video:AdColony':
+		if x['Status Adcolony'] == 'Pause':
+			return 'Blacklist'
+		elif x['Cohort Size'] < 50:
+			return 'RON'
+		elif x['Greylist Adcolony'] == 1:
+			return 'Greylist'
+		else:
+			return 'RON'
+	elif x['Network'] == 'Paid:Video:Supersonic':
+		if x['Status Supersonic'] == 'Pause':
+			return 'Blacklist'
+		elif x['Cohort Size'] < 50:
+			return 'RON'
+		elif x['Greylist Supersonic'] == 1:
+			return 'Greylist'
+		else:
+			return 'RON'
 	else:
 		return 'RON'
 
 channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 
-#remove duplicate columns
-channels = channels.drop(['Greylist'],axis=1)
+#channel status function
+def channel_status(x):
+	if x['Network'] == 'Paid:Video:Vungle':
+		return x['Status Vungle']
+	elif x['Network'] == 'Paid:Video:Unity':
+		return x['Status Unity']
+	elif x['Network'] == 'Paid:Video:AdColony':
+		return x['Status Adcolony']
+	elif x['Network'] == 'Paid:Video:Supersonic':
+		return x['Status Supersonic']
+
+channels['Status'] = channels.apply(channel_status, axis=1)
 
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan).reset_index()
@@ -105,19 +164,12 @@ channels = channels.replace([np.inf, -np.inf], np.nan).reset_index()
 #group by Network, Campaign, Adgroup, OS, Country
 channels_grouped = channels.groupby(['Network','Campaign','Adgroup','OS','Status','Bucket','Country']).agg({
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
-        'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean},).reset_index()
+		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean},).reset_index()
 
 #print to CSV
 #channels_grouped.to_csv('data15.csv')
 
-#channels['Greater 75% of Bid'].describe()
-#channels['Purchase ?'].describe()
-#channels['Bucket'].describe()
-#channels['Days after Install'].describe()
-
-#channels['Cohort Size'][channels['Campaign'] == 'GoT UAC-Actions_IAP_CA/AU/UK/NZ_Android (1362632829)'].count()
-
-#fix the UTF format before exporting to Google Sheets
+#fix UTF format before exporting to Google Sheets
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -139,3 +191,4 @@ channels_output.df_to_sheet(vungle, sheet='Vungle')
 channels_output.df_to_sheet(unity, sheet='Unity')
 channels_output.df_to_sheet(adcolony, sheet='AdColony')
 channels_output.df_to_sheet(ironsourse, sheet='IronSource')
+channels_output.df_to_sheet(dates, sheet='dates')
