@@ -84,53 +84,27 @@ live_campaigns.columns.values[0] = 'Campaign'
 #output active campaigns
 channels_output.df_to_sheet(live_campaigns, sheet='Live Campaigns')
 
-#get target CPI for each network
+#get target CPI bids for each network
 CPI_GoogleSheets = Spread('new','Performance_Analysis')
-#CPIs = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='DASH')
-#CPI_Adcolony = float(CPIs['AdColony'][0])
-#CPI_Supersonic = float(CPIs['Supersonic'][0])
-#CPI_Unity = float(CPIs['Unity'][0])
-#CPI_Vungle = float(CPIs['Vungle'][0])
-
-#add bid CPIs to dataframe
 bids_data = CPI_GoogleSheets.sheet_to_df(index=1,header_rows=1, start_row=1,sheet='Live Campaigns')
 bids = pd.DataFrame(bids_data)
 channels = pd.merge(channels,bids,on='Campaign')
 
+#change Bids format to float
 channels['Bids'] = pd.to_numeric(channels['Bids'])
 type(channels['Bids'])
-#add net revenue, ARPU, Purchase, Bid, Status, Bucket
 
-#channels['Revenue Unique'] = np.where(channels['Days after Install'] == 0,channels['Revenue Total'],0)
+#add net revenue, ARPU, Purchase, Bid, Status, Bucket
 channels['D7 Net Revenue'] = channels['Revenue'] * 0.7
 channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size']
 channels['D180 ARPU'] = channels['D7 ARPU'] / 0.08
 channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7 ARPU'] == 0),0,1)
 channels['Cohort Unique'] = np.where(channels['Days after Install'] == 0,channels['Cohort Size'],0)
 
-#vungle
 channels['Greater 75% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (channels['Bids'] * 0.75)),0,1)
 channels['Greater 125% of Bid'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (channels['Bids'] * 1.25)),1,0)
 channels['Status'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid'] == 0),'Pause','Live')
 channels['Greylist'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid'] == 1),1,0)
-
-#unity
-#channels['Greater 75% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Unity * 0.75)),0,1)
-#channels['Greater 125% of Bid Unity'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Unity * 1.25)),1,0)
-#channels['Status Unity'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Unity'] == 0),'Pause','Live')
-#channels['Greylist Unity'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Unity'] == 1),1,0)
-
-#adcolony
-#channels['Greater 75% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Adcolony * 0.75)),0,1)
-#channels['Greater 125% of Bid Adcolony'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Adcolony * 1.25)),1,0)
-#channels['Status Adcolony'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Adcolony'] == 0),'Pause','Live')
-#channels['Greylist Adcolony'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Adcolony'] == 1),1,0)
-
-#supersonic
-#channels['Greater 75% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] < (CPI_Supersonic * 0.75)),0,1)
-#channels['Greater 125% of Bid Supersonic'] = np.where((channels['Cohort Size'] > 100) & (channels['D180 ARPU'] >= (CPI_Supersonic * 1.25)),1,0)
-#channels['Status Supersonic'] = np.where((channels['Purchase ?'] == 0) | (channels['Greater 75% of Bid Supersonic'] == 0),'Pause','Live')
-#channels['Greylist Supersonic'] = np.where((channels['Purchase ?'] == 1) | (channels['Greater 125% of Bid Supersonic'] == 1),1,0)
 
 #channel bucket function
 def channel_bucket(x):
@@ -154,9 +128,6 @@ channels_grouped = channels.groupby(['Network_x','Campaign','Adgroup','OS','Stat
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
 		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'Bids':np.mean},).reset_index()
 
-#print to CSV
-#channels_grouped.to_csv('data15.csv')
-
 #fix UTF format before exporting to Google Sheets
 import sys
 reload(sys)
@@ -167,6 +138,8 @@ vungle = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Vungle'].
 unity = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Unity'].reset_index(drop=True)
 adcolony = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:AdColony'].reset_index(drop=True)
 ironsourse = channels_grouped[channels_grouped['Network_x'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
+
+agg_channels = pd.concat([vungle,unity,adcolony,ironsourse],ignore_index=True)
 
 #reset sheets
 channels_output.clear_sheet(sheet='Vungle')
@@ -179,6 +152,7 @@ channels_output.df_to_sheet(vungle, sheet='Vungle')
 channels_output.df_to_sheet(unity, sheet='Unity')
 channels_output.df_to_sheet(adcolony, sheet='AdColony')
 channels_output.df_to_sheet(ironsourse, sheet='IronSource')
+channels_output.df_to_sheet(agg_channels, sheet='All Channels')
 
 #output start and end date
 channels_output.df_to_sheet(dates, sheet='dates')
