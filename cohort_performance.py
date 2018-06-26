@@ -4,20 +4,21 @@ import numpy as np
 from gspread_pandas import Spread
 channels_output = Spread('new', 'Performance_Analysis')
 
+#from rpy import *
 
 #adding path to CSV file with iOS raw data
-file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-06-12 - 2018-06-19.csv')
+file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24.csv')
 print(file_path_iOS)
 dir_path = os.path.dirname(file_path_iOS)
 print(dir_path)
-csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-06-12 - 2018-06-19.csv')
+csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24.csv')
 
 #adding path to CSV file with iOS raw data
-file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-06-12 - 2018-06-19.csv')
+file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24.csv')
 print(file_path_android)
 dir_path = os.path.dirname(file_path_android)
 print(dir_path)
-csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-06-12 - 2018-06-19.csv')
+csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24.csv')
 
 #creating dataframes for iOS and Android from CSVs
 cohorts_iOS = pd.read_csv(csv_path_iOS)
@@ -95,7 +96,7 @@ channels['Bids'] = pd.to_numeric(channels['Bids'])
 type(channels['Bids'])
 
 #add net revenue, ARPU, Purchase, Bid, Status, Bucket
-channels['D7 Net Revenue'] = channels['Revenue'] * 0.7
+channels['D7 Net Revenue'] = np.where(channels['Days after Install'] <= 7,channels['Revenue'] * 0.7,0)
 channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size']
 channels['D180 ARPU'] = channels['D7 ARPU'] / 0.08
 channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7 ARPU'] == 0),0,1)
