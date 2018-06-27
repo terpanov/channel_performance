@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 from gspread_pandas import Spread
-channels_output = Spread('new', 'Performance_Analysis')
+channels_output = Spread('wb', 'Performance_Analysis')
 
 #from rpy import *
 
@@ -20,9 +20,17 @@ dir_path = os.path.dirname(file_path_android)
 print(dir_path)
 csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24.csv')
 
+#adding path to CSV file with Singular raw data
+file_path_singular = os.path.abspath('Advertiser daily report 2018-05-14-2018-06-24.csv')
+print(file_path_singular)
+dir_path = os.path.dirname(file_path_singular)
+print(dir_path)
+singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-05-14-2018-06-24.csv')
+
 #creating dataframes for iOS and Android from CSVs
 cohorts_iOS = pd.read_csv(csv_path_iOS)
 cohorts_android = pd.read_csv(csv_path_android)
+cohorts_singular = pd.read_csv(singular_path)
 
 #add OS columns to both dataframes
 cohorts_iOS.info()
@@ -65,19 +73,19 @@ channels = channels.fillna(0)
 #extract active campaigns
 vungle_data = channels[channels['Network'] == 'Paid:Video:Vungle']
 vungle_campaigns = pd.DataFrame(vungle_data['Campaign'].unique())
-vungle_campaigns['Network'] = 'Vungle'
+vungle_campaigns['Network'] = 'Paid:Video:Vungle'
 
 unity_data = channels[channels['Network'] == 'Paid:Video:Unity']
 unity_campaigns = pd.DataFrame(unity_data['Campaign'].unique())
-unity_campaigns['Network'] = 'Unity'
+unity_campaigns['Network'] = 'Paid:Video:Unity'
 
 adcolony_data = channels[channels['Network'] == 'Paid:Video:AdColony']
 adcolony_campaigns = pd.DataFrame(adcolony_data['Campaign'].unique())
-adcolony_campaigns['Network'] = 'AdColony'
+adcolony_campaigns['Network'] = 'Paid:Video:AdColony'
 
 ironsourse_data = channels[channels['Network'] == 'Paid:Video:Supersonic']
 ironsourse_campaigns = pd.DataFrame(ironsourse_data['Campaign'].unique())
-ironsourse_campaigns['Network'] = 'IronSource'
+ironsourse_campaigns['Network'] = 'Paid:Video:Supersonic'
 
 live_campaigns = pd.concat([vungle_campaigns,unity_campaigns,adcolony_campaigns,ironsourse_campaigns],ignore_index=True)
 live_campaigns.columns.values[0] = 'Campaign'
@@ -120,6 +128,41 @@ def channel_bucket(x):
 
 channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 
+#add Campaigns Uni column to adjust for Singular names
+def campaign_name(x):
+	if x['Network_x'] == 'Paid:Video:Vungle':
+		return x['Campaign'].split('_',1)[0]
+	elif x['Network_x'] == 'Paid:Video:Unity':
+		return x['Campaign']
+	elif x['Network_x'] == 'Paid:Video:AdColony' and x['OS'] == 'iOS':
+		return 'Game of Thrones: Conquest iOS ' + x['Campaign']
+	elif x['Network_x'] == 'Paid:Video:AdColony' and x['OS'] == 'android':
+		return 'Game of Thrones: Conquest Android ' + x['Campaign']
+	elif x['Network_x'] == 'Paid:Video:Supersonic':
+		return x['Campaign']
+
+channels['Campaign Uni'] = channels.apply(campaign_name, axis=1)
+
+def campaign_name_bids(x):
+	if x['Network'] == 'Paid:Video:Vungle':
+		return x['Campaign'].split('_',1)[0]
+	elif x['Network'] == 'Paid:Video:Unity':
+		return x['Campaign']
+	elif x['Network'] == 'Paid:Video:AdColony' and x['OS'] == 'iOS':
+		return 'Game of Thrones: Conquest iOS ' + x['Campaign']
+	elif x['Network'] == 'Paid:Video:AdColony' and x['OS'] == 'android':
+		return 'Game of Thrones: Conquest Android ' + x['Campaign']
+	elif x['Network'] == 'Paid:Video:Supersonic':
+		return x['Campaign']
+
+bids['Campaign Uni'] = channels.apply(campaign_name, axis=1)
+
+#merge Singular data with Bids data
+#cohorts_singular['Campaign Uni'] = cohorts_singular['Campaign']
+#singular_grouped = cohorts_singular.groupby(['Source','Campaign']).agg({eCPI})
+#cohorts_singular.info()
+#channels_new = pd.merge(channels,cohorts_singular,on='Campaign Uni')
+
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan).reset_index()
 channels.info()
@@ -157,4 +200,8 @@ channels_output.df_to_sheet(agg_channels, sheet='All Channels')
 
 #output start and end date
 channels_output.df_to_sheet(dates, sheet='dates')
+
+
+
+
 
