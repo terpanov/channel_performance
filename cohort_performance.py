@@ -140,8 +140,6 @@ channels_grouped = channels.groupby(['Network','Campaign Uni','Adgroup','OS','St
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
 		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'eCPI':np.mean},).reset_index()
 
-
-
 #fix UTF format before exporting to Google Sheets
 import sys
 reload(sys)
