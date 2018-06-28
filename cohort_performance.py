@@ -79,7 +79,7 @@ def campaign_name(x):
 	elif x['Network'] == 'Paid:Video:Unity':
 		return x['Campaign']
 	elif x['Network'] == 'Paid:Video:AdColony' and x['OS'] == 'iOS':
-		return 'Game of Thrones: Conquest iOS  ' + x['Campaign']    #note the double space after iOS #amateurs
+		return 'Game of Thrones: Conquest iOS  ' + x['Campaign']    #note the double space after iOS
 	elif x['Network'] == 'Paid:Video:AdColony' and x['OS'] == 'android':
 		return 'Game of Thrones: Conquest Android ' + x['Campaign']
 	elif x['Network'] == 'Paid:Video:Supersonic':
@@ -130,10 +130,17 @@ channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan)
 
+check1 = channels[channels['Campaign Uni'] == 'GOT Android T2 RON']
+check1['Revenue'].sum()
+check1['Cohort Unique'].sum()
+
+
 #group by Network, Campaign, Adgroup, OS, Country
 channels_grouped = channels.groupby(['Network','Campaign Uni','Adgroup','OS','Status','Bucket','Country']).agg({
-		'Days after Install':np.mean,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
+		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
 		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'eCPI':np.mean},).reset_index()
+
+
 
 #fix UTF format before exporting to Google Sheets
 import sys
@@ -154,6 +161,7 @@ channels_output.clear_sheet(sheet='Vungle')
 channels_output.clear_sheet(sheet='Unity')
 channels_output.clear_sheet(sheet='AdColony')
 channels_output.clear_sheet(sheet='IronSource')
+#clear All Channels and Singular tabs
 
 #output channel raw data to Google Sheets
 channels_output.df_to_sheet(vungle, sheet='Vungle')
