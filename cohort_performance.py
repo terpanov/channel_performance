@@ -5,18 +5,18 @@ from gspread_pandas import Spread
 channels_output = Spread('wb', 'Performance_Analysis') #authorizing Google Sheets/Drive APIs
 
 #adding path to CSV file with iOS raw data
-file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24.csv')
+file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
 print(file_path_iOS)
 dir_path = os.path.dirname(file_path_iOS)
 print(dir_path)
-csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24.csv')
+csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
 
 #adding path to CSV file with iOS raw data
-file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24.csv')
+file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
 print(file_path_android)
 dir_path = os.path.dirname(file_path_android)
 print(dir_path)
-csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24.csv')
+csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
 
 #adding path to CSV file with Singular raw data
 file_path_singular = os.path.abspath('Advertiser daily report 2018-05-14-2018-06-24.csv')
@@ -99,11 +99,19 @@ channels = pd.merge(channels,singular_grouped,on='Campaign Uni',how='outer')
 #check the number and names of the unique Campaign Uni values
 channels['Campaign Uni'].nunique()
 campaign_names = channels['Campaign Uni'].unique()
+sorted(network_names)
 all_campaigns = pd.DataFrame(sorted(campaign_names))
 
 #add net revenue, ARPUs, Purchase, Bid %, Status, Greylist, and Bucket
+channels['D1 Net Revenue'] = np.where(channels['Days after Install'] <= 1,channels['Revenue'] * 0.7,0)
+channels['D1 ARPU'] = channels['D1 Net Revenue'] / channels['Cohort Size']
+
+channels['D3 Net Revenue'] = np.where(channels['Days after Install'] <= 3,channels['Revenue'] * 0.7,0)
+channels['D3 ARPU'] = channels['D3 Net Revenue'] / channels['Cohort Size']
+
 channels['D7 Net Revenue'] = np.where(channels['Days after Install'] <= 7,channels['Revenue'] * 0.7,0)
 channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size']
+
 channels['D180 ARPU'] = channels['D7 ARPU'] / 0.08
 channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7 ARPU'] == 0),0,1)
 channels['Cohort Unique'] = np.where(channels['Days after Install'] == 0,channels['Cohort Size'],0)
@@ -132,13 +140,14 @@ channels = channels.replace([np.inf, -np.inf], np.nan)
 
 check1 = channels[channels['Campaign Uni'] == 'GOT Android T2 RON']
 check1['Revenue'].sum()
+check1['D7 Net Revenue'].sum()
 check1['Cohort Unique'].sum()
-
 
 #group by Network, Campaign, Adgroup, OS, Country
 channels_grouped = channels.groupby(['Network','Campaign Uni','Adgroup','OS','Status','Bucket','Country']).agg({
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
-		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'eCPI':np.mean},).reset_index()
+		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'eCPI':np.mean,'Revenue Total':np.max,
+		'D3 Net Revenue':np.sum, 'D3 ARPU':np.mean,'D1 Net Revenue':np.sum,'D1 ARPU':np.mean}).reset_index()
 
 #fix UTF format before exporting to Google Sheets
 import sys
@@ -168,6 +177,8 @@ channels_output.df_to_sheet(adcolony, sheet='AdColony')
 channels_output.df_to_sheet(ironsourse, sheet='IronSource')
 channels_output.df_to_sheet(agg_channels, sheet='All Channels')
 channels_output.df_to_sheet(singular_grouped, sheet='Singular')
+channels_output.df_to_sheet(all_campaigns, sheet='Campaign Names')
+
 
 #output start and end date
 channels_output.df_to_sheet(dates, sheet='dates')
