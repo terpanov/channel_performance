@@ -19,11 +19,11 @@ print(dir_path)
 csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
 
 #adding path to CSV file with Singular raw data
-file_path_singular = os.path.abspath('Advertiser daily report 2018-05-14-2018-06-24.csv')
+file_path_singular = os.path.abspath('Advertiser daily report 2018-05-14-2018-06-24_impressions.csv')
 print(file_path_singular)
 dir_path = os.path.dirname(file_path_singular)
 print(dir_path)
-singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-05-14-2018-06-24.csv')
+singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-05-14-2018-06-24_impressions.csv')
 
 #creating dataframes for iOS and Android from CSVs
 cohorts_iOS = pd.read_csv(csv_path_iOS)
@@ -42,6 +42,7 @@ cohorts = pd.concat([cohorts_iOS, cohorts_android], ignore_index=True)
 #converting date column to datetime format
 cohorts['Date'] = pd.to_datetime(cohorts['Date'])
 cohorts['Days after Install'].max()
+cohorts_singular.info()
 
 #selecting columns to keep
 channels = cohorts[['Date','Tracker','Network','Campaign','Adgroup','Creative','Days after Install','Cohort Size',
@@ -70,7 +71,9 @@ dates = pd.DataFrame([date_start,date_end])
 channels = channels.fillna(0)
 
 #group Singular data by Campaign and Source (can go more granular, if necessary)
-singular_grouped = cohorts_singular.groupby(['Campaign','Source']).agg({'eCPI':np.mean,'Installs':np.sum,'Cost':np.sum,}).reset_index()
+singular_grouped = cohorts_singular.groupby(['Campaign','Source']).agg({'eCPI':np.mean,'Installs':np.sum,'Cost':np.sum,
+												'Impressions':np.sum,'Clicks':np.sum}).reset_index() #add date level
+#get map and add date and country level
 
 #add Campaigns Uni column to adjust for Singular names
 def campaign_name(x):
@@ -110,7 +113,7 @@ channels['D3 Net Revenue'] = np.where(channels['Days after Install'] <= 3,channe
 channels['D3 ARPU'] = channels['D3 Net Revenue'] / channels['Cohort Size']
 
 channels['D7 Net Revenue'] = np.where(channels['Days after Install'] <= 7,channels['Revenue'] * 0.7,0)
-channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size']
+channels['D7 ARPU'] = channels['D7 Net Revenue'] / channels['Cohort Size'] #double check
 
 channels['D180 ARPU'] = channels['D7 ARPU'] / 0.08
 channels['Purchase ?'] = np.where((channels['Cohort Size'] > 50) & (channels['D7 ARPU'] == 0),0,1)
@@ -138,16 +141,12 @@ channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan)
 
-check1 = channels[channels['Campaign Uni'] == 'GOT Android T2 RON']
-check1['Revenue'].sum()
-check1['D7 Net Revenue'].sum()
-check1['Cohort Unique'].sum()
-
 #group by Network, Campaign, Adgroup, OS, Country
-channels_grouped = channels.groupby(['Network','Campaign Uni','Adgroup','OS','Status','Bucket','Country']).agg({
+channels_grouped = channels.groupby(['Date','Network','Campaign Uni','Adgroup','OS','Status','Bucket','Country']).agg({
 		'Days after Install':np.max,'Cohort Unique':np.sum,'Sessions':np.sum,'Revenue':np.sum,
 		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'eCPI':np.mean,'Revenue Total':np.max,
-		'D3 Net Revenue':np.sum, 'D3 ARPU':np.mean,'D1 Net Revenue':np.sum,'D1 ARPU':np.mean}).reset_index()
+		'D3 Net Revenue':np.sum, 'D3 ARPU':np.mean,'D1 Net Revenue':np.sum,'D1 ARPU':np.mean,
+		'Impressions':np.sum,'Clicks':np.sum}).reset_index()
 
 #fix UTF format before exporting to Google Sheets
 import sys
@@ -164,21 +163,20 @@ ironsourse = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Superso
 agg_channels = pd.concat([vungle,unity,adcolony,ironsourse],ignore_index=True)
 
 #reset sheets
-channels_output.clear_sheet(sheet='Vungle')
-channels_output.clear_sheet(sheet='Unity')
-channels_output.clear_sheet(sheet='AdColony')
-channels_output.clear_sheet(sheet='IronSource')
+#channels_output.clear_sheet(sheet='Vungle')
+#channels_output.clear_sheet(sheet='Unity')
+#channels_output.clear_sheet(sheet='AdColony')
+#channels_output.clear_sheet(sheet='IronSource')
 #clear All Channels and Singular tabs
 
 #output channel raw data to Google Sheets
-channels_output.df_to_sheet(vungle, sheet='Vungle')
-channels_output.df_to_sheet(unity, sheet='Unity')
-channels_output.df_to_sheet(adcolony, sheet='AdColony')
-channels_output.df_to_sheet(ironsourse, sheet='IronSource')
+#channels_output.df_to_sheet(vungle, sheet='Vungle')
+#channels_output.df_to_sheet(unity, sheet='Unity')
+#channels_output.df_to_sheet(adcolony, sheet='AdColony')
+#channels_output.df_to_sheet(ironsourse, sheet='IronSource')
 channels_output.df_to_sheet(agg_channels, sheet='All Channels')
 channels_output.df_to_sheet(singular_grouped, sheet='Singular')
-channels_output.df_to_sheet(all_campaigns, sheet='Campaign Names')
-
+#channels_output.df_to_sheet(all_campaigns, sheet='Campaign Names')
 
 #output start and end date
 channels_output.df_to_sheet(dates, sheet='dates')
