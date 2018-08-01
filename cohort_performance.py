@@ -5,25 +5,25 @@ from gspread_pandas import Spread
 video_channel_output = Spread('dt_wb', 'Performance_Analysis_Video') #authorizing Google Sheets/Drive APIs
 
 #adding path to CSV file with iOS raw data
-file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
+file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-07-23 - 2018-07-29.csv')
 print(file_path_iOS)
 dir_path = os.path.dirname(file_path_iOS)
 print(dir_path)
-csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
+csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-07-23 - 2018-07-29.csv')
 
-#adding path to CSV file with iOS raw data
-file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
+#adding path to CSV file with Android raw data
+file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-07-23 - 2018-07-29.csv')
 print(file_path_android)
 dir_path = os.path.dirname(file_path_android)
 print(dir_path)
-csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-05-14 - 2018-06-24_with impressions.csv')
+csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-07-23 - 2018-07-29.csv')
 
 #adding path to CSV file with Singular raw data
-file_path_singular = os.path.abspath('Advertiser daily report 2018-05-14-2018-06-24_all networks.csv')
+file_path_singular = os.path.abspath('Advertiser daily report 2018-07-23-2018-07-29.csv')
 print(file_path_singular)
 dir_path = os.path.dirname(file_path_singular)
 print(dir_path)
-singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-05-14-2018-06-24_all networks.csv')
+singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-07-23-2018-07-29.csv')
 
 #adding path to CSV file with Singular raw data
 file_path_country = os.path.abspath('Country Mapping (Adjust to Singular).csv')
@@ -88,6 +88,8 @@ dates = pd.DataFrame([date_start,date_end])
 
 #fill blank values with zeroes
 channels = channels.fillna(0)
+channels['Network'].unique()
+cohorts_singular['Source'].unique()
 
 def network_name(x):
 	if x['Source'] == 'Vungle':
@@ -183,7 +185,7 @@ channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan)
-channels.info()
+
 #group by Network, Campaign, Adgroup, OS, Country
 channels_grouped = channels.groupby(['Date','Network','Campaign Uni','OS','Country','Adgroup'
 		]).agg({'Cohort Day 0':np.sum,'Revenue':np.sum,'Days after Install':np.max,
@@ -194,15 +196,35 @@ channels_grouped = channels.groupby(['Date','Network','Campaign Uni','OS','Count
 		'Paying User Size 0':np.sum,'Paying User Size 3':np.sum,'Paying User Size 7':np.sum,'Cost':np.sum,
 				'eCPI':np.average}).reset_index()
 
-#filter by partner network
+
+campaigns_grouped = channels.groupby(['Network','OS','Campaign Uni','Country','Adgroup'
+		]).agg({'Cohort Day 0':np.sum,'Revenue':np.sum,'Days after Install':np.max,
+		'D7 Net Revenue':np.sum,'D7 ARPU':np.mean,'D180 ARPU':np.mean,'Revenue Total':np.max,
+		'D3 Net Revenue':np.sum, 'D3 ARPU':np.mean,'D1 Net Revenue':np.sum,'D1 ARPU':np.mean,
+		'Impressions':np.sum,'Clicks':np.sum, 'Cohort Day 3':np.sum, 'Cohort Day 7':np.sum,
+		'Retained Users 0':np.sum,'Retained Users 3':np.sum,'Retained Users 7':np.sum,
+		'Paying User Size 0':np.sum,'Paying User Size 3':np.sum,'Paying User Size 7':np.sum,'Cost':np.sum,
+				'eCPI':np.average}).reset_index()
+
+
+#filter channels by partner network
 vungle = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
 unity = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Unity'].reset_index(drop=True)
 adcolony = channels_grouped[channels_grouped['Network'] == 'Paid:Video:AdColony'].reset_index(drop=True)
 ironsourse = channels_grouped[channels_grouped['Network'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
 
+#filter campaigns by partner network
+vungle_campaigns = campaigns_grouped[campaigns_grouped['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
+unity_campaigns = campaigns_grouped[campaigns_grouped['Network'] == 'Paid:Video:Unity'].reset_index(drop=True)
+adcolony_campaigns = campaigns_grouped[campaigns_grouped['Network'] == 'Paid:Video:AdColony'].reset_index(drop=True)
+ironsourse_campaigns = campaigns_grouped[campaigns_grouped['Network'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
+
 #aggregate all channels
 agg_video_channels = pd.concat([vungle,unity,adcolony,ironsourse],ignore_index=True)
-agg_video_channels.info()
+agg_video_channels = agg_video_channels.fillna(0)
+
+agg_video_campaigns = pd.concat([vungle_campaigns,unity_campaigns,adcolony_campaigns,ironsourse_campaigns],ignore_index=True)
+agg_video_campaigns = agg_video_campaigns.fillna(0)
 
 
 check_net = agg_video_channels['Campaign Uni'].nunique()
@@ -210,6 +232,7 @@ network_names_agg = agg_video_channels['Campaign Uni'].unique()
 sorted(network_names_agg)
 
 video_channel_output.df_to_sheet(agg_video_channels, sheet='All Channels')
+video_channel_output.df_to_sheet(agg_video_campaigns, sheet='All Campaigns')
 
 #output start and end date
 video_channel_output.df_to_sheet(dates, sheet='dates')
