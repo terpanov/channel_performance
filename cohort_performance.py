@@ -197,8 +197,17 @@ channels['Bucket'] = channels.apply(channel_bucket, axis=1)
 #drop infinite values as result of 0 cohorts with revenue
 channels = channels.replace([np.inf, -np.inf], np.nan)
 
-#group by Network, Campaign, Adgroup, OS, Country  #'Adgroup','Creative','Campaign Uni'
+#group by Network, Campaign, Adgroup, OS, Country  #'Adgroup','Creative','Campaign Uni', 'Adgroup','Creative'
 grouped_by_date = channels.groupby(['Date','Network','OS','Country','Campaign Uni'
+		]).agg({'Cost':np.max,'Impressions':np.max,'Clicks':np.max,'Installs':np.max,'eCPI':np.mean,
+				'D1 ARPU':np.mean,'D3 ARPU':np.mean,'D7 ARPU':np.mean,'D180 ARPU':np.mean,
+                'Retained Users 0':np.sum,'Retained Users 3':np.sum,'Retained Users 7':np.sum,
+                'Cohort Day 0':np.sum,'Cohort Day 3':np.sum, 'Cohort Day 7':np.sum,
+                'D1 Net Revenue':np.sum,'D3 Net Revenue':np.sum,'D7 Net Revenue':np.sum,
+                'Paying User Size 0':np.sum,'Paying User Size 3':np.sum,'Paying User Size 7':np.sum,'Revenue Total':np.max,
+                'Days after Install':np.max,'CTR':np.mean,'CVR':np.mean,'Lifetime Value':np.mean,'Cohort Size':np.max}).reset_index()
+
+grouped_with_pubs_creatives = channels.groupby(['Date','Network','OS','Country','Campaign Uni','Adgroup' #,'Creative'
 		]).agg({'Cost':np.max,'Impressions':np.max,'Clicks':np.max,'Installs':np.max,'eCPI':np.mean,
 				'D1 ARPU':np.mean,'D3 ARPU':np.mean,'D7 ARPU':np.mean,'D180 ARPU':np.mean,
                 'Retained Users 0':np.sum,'Retained Users 3':np.sum,'Retained Users 7':np.sum,
@@ -209,6 +218,8 @@ grouped_by_date = channels.groupby(['Date','Network','OS','Country','Campaign Un
 
 grouped_by_date['Average CPI'] = grouped_by_date['Cost'] / grouped_by_date['Cohort Day 0']
 grouped_by_date['Average eCPI (check)'] = grouped_by_date['Cost'] / grouped_by_date['Installs']
+
+grouped_with_pubs_creatives['Average CPI'] = grouped_with_pubs_creatives['Cost'] / grouped_with_pubs_creatives['Cohort Day 0']
 
 #filter channels by partner network by date / to be used if covering larger period and need to focus on only one network
 vungle = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
@@ -223,11 +234,21 @@ agg_video_by_date = agg_video_by_date.fillna(0)
 
 #output to Google Sheets
 video_channel_output.df_to_sheet(grouped_by_date, sheet='sort by date')
+video_channel_output.df_to_sheet(grouped_with_pubs_creatives, sheet='sorted with pubs')
 
 #output start and end date
 video_channel_output.df_to_sheet(dates, sheet='dates')
 
-channels['Days after Install'].nunique()
+#pivot table, remove hashtags below if you need to run pivot table
+#from pandas import pivot_table
+
+#pivot_channels = pivot_table(grouped_by_date, index=['OS','Network','Campaign Uni','Country'],
+#				values=['Cost','Impressions','Clicks','Installs','Retained Users 0',
+#				'Retained Users 3','Retained Users 7','D1 Net Revenue','D3 Net Revenue','D7 Net Revenue',
+#				'Revenue Total','Paying User Size 0','Paying User Size 3','Paying User Size 7'],aggfunc=np.sum)
+
+#video_channel_output.df_to_sheet(pivot_channels, sheet='Pivot from Script')
+
 
 
 
