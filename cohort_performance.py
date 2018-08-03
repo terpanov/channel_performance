@@ -131,9 +131,6 @@ def campaign_name(x):
 
 channels['Campaign Uni'] = channels.apply(campaign_name, axis=1)
 
-check_forge = pd.DataFrame(channels['Campaign Uni'])
-#channels['Campaign Uni'].unique()
-
 #add Campaign Uni column and Average CPI column to Singular data
 singular_grouped['Campaign Uni'] = singular_grouped['Campaign']
 singular_grouped['Average CPI'] = singular_grouped['Cost'] / singular_grouped['Installs']
@@ -217,7 +214,7 @@ grouped_by_date = channels.groupby(['Date','Network','OS','Country','Campaign Un
                 'Days after Install':np.max,'CTR':np.mean,'CVR':np.mean,'Lifetime Value':np.mean,'Cohort Size':np.max}).reset_index()
 
 grouped_by_date['Average CPI'] = grouped_by_date['Cost'] / grouped_by_date['Cohort Day 0']
-grouped_by_date['Average eCPI'] = grouped_by_date['Cost'] / grouped_by_date['Installs']
+grouped_by_date['Average eCPI (check)'] = grouped_by_date['Cost'] / grouped_by_date['Installs']
 
 #filter channels by partner network by date
 vungle = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
@@ -229,9 +226,8 @@ ironsourse = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Supersoni
 agg_video_by_date = pd.concat([vungle,unity,adcolony,ironsourse],ignore_index=True)
 agg_video_by_date = agg_video_by_date.fillna(0)
 
+#output to Google Sheets
 video_channel_output.df_to_sheet(grouped_by_date, sheet='sort by date')
-#video_channel_output.df_to_sheet(singular_camp, sheet='sing camp')
-#video_channel_output.df_to_sheet(adjust_camp, sheet='adjust camp')
 
 #output start and end date
 video_channel_output.df_to_sheet(dates, sheet='dates')
