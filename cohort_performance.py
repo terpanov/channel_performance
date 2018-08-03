@@ -5,25 +5,25 @@ from gspread_pandas import Spread
 video_channel_output = Spread('dt_wb', 'Performance_Analysis_Video') #authorizing Google Sheets/Drive APIs
 
 #adding path to CSV file with iOS raw data
-file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-07-23 - 2018-07-29.csv')
+file_path_iOS = os.path.abspath('Game of Thrones_ Conquest iOS Cohorts 2018-07-14 - 2018-07-21.csv')
 print(file_path_iOS)
 dir_path = os.path.dirname(file_path_iOS)
 print(dir_path)
-csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-07-23 - 2018-07-29.csv')
+csv_path_iOS = os.path.join(dir_path, 'Game of Thrones_ Conquest iOS Cohorts 2018-07-14 - 2018-07-21.csv')
 
 #adding path to CSV file with Android raw data
-file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-07-23 - 2018-07-29.csv')
+file_path_android = os.path.abspath('Game of Thrones_ Conquest Android Cohorts 2018-07-14 - 2018-07-21.csv')
 print(file_path_android)
 dir_path = os.path.dirname(file_path_android)
 print(dir_path)
-csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-07-23 - 2018-07-29.csv')
+csv_path_android = os.path.join(dir_path, 'Game of Thrones_ Conquest Android Cohorts 2018-07-14 - 2018-07-21.csv')
 
 #adding path to CSV file with Singular raw data
-file_path_singular = os.path.abspath('Advertiser daily report 2018-07-23-2018-07-29 (3).csv')
+file_path_singular = os.path.abspath('Advertiser daily report 2018-07-14-2018-07-21.csv')
 print(file_path_singular)
 dir_path = os.path.dirname(file_path_singular)
 print(dir_path)
-singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-07-23-2018-07-29 (3).csv')
+singular_path = os.path.join(dir_path, 'Advertiser daily report 2018-07-14-2018-07-21.csv')
 
 #adding path to CSV file with Singular raw data
 file_path_country = os.path.abspath('Country Mapping (Adjust to Singular).csv')
@@ -43,7 +43,6 @@ cohorts_singular['Country Full'] = cohorts_singular['Country']
 cohorts_singular = cohorts_singular.drop('Country',1)
 cohorts_singular = pd.merge(cohorts_singular,country_codes,left_on='Country Full',right_on='Singular',how='left')
 
-
 #make android lowercase in Singular for future merging with Adjust
 cohorts_singular['OS'] = cohorts_singular['OS'].str.replace('A','a')
 
@@ -59,9 +58,6 @@ cohorts = pd.concat([cohorts_iOS, cohorts_android], ignore_index=True)
 #converting date column to datetime format
 cohorts['Date'] = pd.to_datetime(cohorts['Date'])
 cohorts_singular['Date'] = pd.to_datetime(cohorts_singular['Date'])
-
-cohorts['Days after Install'].max()
-cohorts.info()
 
 #selecting columns to keep
 channels = cohorts[['Date','Tracker','Network','Campaign','Adgroup','Creative','Days after Install','Cohort Size',
@@ -150,7 +146,6 @@ campaign_names = channels['Campaign Uni'].unique()
 sorted(network_names)
 
 #add net revenue, ARPUs, Purchase, Bid %, Status, Greylist, and Bucket
-channels.info()
 
 #cohort size
 channels['Cohort Day 0'] = np.where(channels['Days after Install'] == 0,channels['Cohort Size'],0)
@@ -204,7 +199,6 @@ channels = channels.replace([np.inf, -np.inf], np.nan)
 
 #group by Network, Campaign, Adgroup, OS, Country  #'Adgroup','Creative','Campaign Uni'
 grouped_by_date = channels.groupby(['Date','Network','OS','Country','Campaign Uni'
-									#'Impressions','Clicks','Installs','Cost','eCPI'
 		]).agg({'Cost':np.max,'Impressions':np.max,'Clicks':np.max,'Installs':np.max,'eCPI':np.mean,
 				'D1 ARPU':np.mean,'D3 ARPU':np.mean,'D7 ARPU':np.mean,'D180 ARPU':np.mean,
                 'Retained Users 0':np.sum,'Retained Users 3':np.sum,'Retained Users 7':np.sum,
@@ -216,11 +210,12 @@ grouped_by_date = channels.groupby(['Date','Network','OS','Country','Campaign Un
 grouped_by_date['Average CPI'] = grouped_by_date['Cost'] / grouped_by_date['Cohort Day 0']
 grouped_by_date['Average eCPI (check)'] = grouped_by_date['Cost'] / grouped_by_date['Installs']
 
-#filter channels by partner network by date
+#filter channels by partner network by date / to be used if covering larger period and need to focus on only one network
 vungle = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Vungle'].reset_index(drop=True)
 unity = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Unity'].reset_index(drop=True)
 adcolony = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:AdColony'].reset_index(drop=True)
 ironsourse = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:Supersonic'].reset_index(drop=True)
+applovin = grouped_by_date[grouped_by_date['Network'] == 'Paid:Video:AppLovin'].reset_index(drop=True)
 
 #aggregate all channels
 agg_video_by_date = pd.concat([vungle,unity,adcolony,ironsourse],ignore_index=True)
@@ -231,6 +226,8 @@ video_channel_output.df_to_sheet(grouped_by_date, sheet='sort by date')
 
 #output start and end date
 video_channel_output.df_to_sheet(dates, sheet='dates')
+
+channels['Days after Install'].nunique()
 
 
 
